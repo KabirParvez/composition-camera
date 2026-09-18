@@ -1,3 +1,5 @@
+import type { Adjustments } from './adjustments';
+
 export type GuideName = 'off' | 'thirds' | 'phi' | 'spiral' | 'diagonals' | 'center';
 
 export type AspectKey = 'full' | '4:3' | '1:1' | '16:9';
@@ -16,6 +18,10 @@ export interface AppState {
   gridColor: string;   // hex
   levelOn: boolean;
   smartOn: boolean;
+  zoom: number;         // current zoom factor (native or digital, whichever is active)
+  zoomIsNative: boolean; // whether `zoom` is applied via hardware constraint vs. CSS transform + crop math
+  adjustments: Adjustments;
+  focusMode: string | null; // null when focus isn't controllable on this device/browser
 }
 
 export const ASPECT_RATIOS: Record<AspectKey, number | null> = {

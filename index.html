@@ -83,6 +83,12 @@
       </div>
     </div>
 
+    <label id="zoomCtl">
+      <span>Zoom</span>
+      <input type="range" id="zoom" min="1" max="3" step="0.1" value="1">
+      <output id="zoomValue" for="zoom">1.0x</output>
+    </label>
+
     <div id="tray">
       <div id="aspectCtl" class="trayGroup" role="group" aria-label="Aspect ratio">
         <button data-aspect="full" aria-pressed="true">Full</button>
@@ -94,6 +100,7 @@
         <button id="flipCam" aria-label="Switch camera" title="C">Flip camera</button>
         <button id="levelToggle" aria-pressed="false" title="L">Level</button>
         <button id="smartToggle" aria-pressed="false" title="Detect the main subject and hint how to frame it">Smart</button>
+        <button id="adjustToggle" aria-pressed="false" title="Filters, brightness, contrast, saturation, focus">Adjust</button>
         <label id="opacityCtl">
           <span>Grid</span>
           <input type="range" id="opacity" min="20" max="100" value="90">
@@ -105,6 +112,34 @@
           <button data-color="#4fd1ff" style="--sw:#4fd1ff" aria-pressed="false" aria-label="Cyan"></button>
           <button data-color="#ff5c5c" style="--sw:#ff5c5c" aria-pressed="false" aria-label="Red"></button>
         </div>
+      </div>
+
+      <div id="adjustPanel" class="hidden">
+        <div id="filterCtl" role="group" aria-label="Filter"></div>
+        <label class="adjustSlider">
+          <span>Brightness</span>
+          <input type="range" id="brightness" min="50" max="150" value="100">
+          <output id="brightnessValue" for="brightness">100%</output>
+        </label>
+        <label class="adjustSlider">
+          <span>Contrast</span>
+          <input type="range" id="contrast" min="50" max="150" value="100">
+          <output id="contrastValue" for="contrast">100%</output>
+        </label>
+        <label class="adjustSlider">
+          <span>Saturation</span>
+          <input type="range" id="saturation" min="0" max="200" value="100">
+          <output id="saturationValue" for="saturation">100%</output>
+        </label>
+        <div id="focusCtl" class="hidden">
+          <span>Focus</span>
+          <div id="focusModes" role="group" aria-label="Focus mode"></div>
+          <label id="focusDistanceCtl" class="hidden adjustSlider">
+            <span>Dist.</span>
+            <input type="range" id="focusDistance" min="0" max="1" step="0.01" value="0">
+          </label>
+        </div>
+        <p id="focusNote" class="hidden">This camera/browser doesn't expose manual focus control.</p>
       </div>
     </div>
   </div>
@@ -125,7 +160,7 @@
     <p id="err" role="alert"></p>
   </div>
 </main>
-<p id="hint" aria-hidden="true">Space to capture · 1–6 to switch guides · R/F rotate/flip spiral · C camera · L level · S smart</p>
+<p id="hint" aria-hidden="true">Space capture · 1–6 guides · R/F spiral · C camera · L level · S smart · A adjust · +/- zoom</p>
 
 <script type="module" src="/src/main.ts"></script>
 </body>

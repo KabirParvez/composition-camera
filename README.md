@@ -27,6 +27,28 @@ The level/horizon toggle additionally needs `DeviceOrientationEvent`, which
 iOS only grants after a user gesture — that's why it's requested inside the
 "Level" button's click handler, not on page load.
 
+## Camera controls (zoom, filters, adjustments, focus)
+
+- **Zoom** (`+`/`-`, or the slider above the shutter) — tries hardware zoom
+  first via the track's `zoom` constraint (mainly Chrome on Android; rare
+  elsewhere). Falls back to a digital zoom otherwise: a CSS `transform:
+  scale()` on the preview, with the *same* zoom factor folded into
+  `computeSourceCropRect` in `layout.ts` so the captured photo always crops
+  to match what was on screen — this is why the crop math takes an explicit
+  `displayRect` (the `#stage` element, not the video's own possibly-scaled
+  bounding box) rather than measuring the video directly.
+- **Filters** — `src/adjustments.ts` defines six presets (Mono, Sepia,
+  Noir, Vivid, Cool, Warm) plus brightness/contrast/saturation sliders,
+  compiled into one CSS `filter` string. That string is applied to the
+  `<video>` for the live preview and to the capture canvas via `ctx.filter`
+  before drawing — one source of truth, so the exported photo always
+  matches what you saw, not a re-interpretation of it.
+- **Focus** (`A` to open the panel) — real hardware control via the track's
+  `focusMode`/`focusDistance` constraints, feature-detected. Most laptop
+  and phone cameras don't expose this to the browser at all; when a device
+  doesn't, the focus section stays hidden and a note says so, rather than
+  showing a slider that silently does nothing.
+
 ## What's here (Phase 1)
 
 - **`src/camera.ts`** — starts/stops the `getUserMedia` stream, switches

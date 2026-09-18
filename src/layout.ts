@@ -40,21 +40,39 @@ export interface SourceCropRect {
 
 /** The rectangle, in source video pixel coordinates, that is actually
  *  visible on screen: first the `object-fit: cover` crop that fills the
- *  display box, then a further centered crop to the chosen aspect ratio.
+ *  display box, then a further centered crop to the chosen aspect ratio,
+ *  then (if digital zoom is active) a further centered crop for zoom.
  *  Shared by capture (what gets exported) and detection (where a subject's
- *  box lands relative to the guide overlay). */
-export function computeSourceCropRect(video: HTMLVideoElement, aspect: AspectKey): SourceCropRect | null {
+ *  box lands relative to the guide overlay).
+ *
+ *  `displayRect` is the video's on-screen box *before* any zoom transform —
+ *  pass the containing #stage's rect (the video always fills it exactly via
+ *  inset:0/100%/100%) rather than the video element's own
+ *  getBoundingClientRect(). If digital zoom is applied to the video via a
+ *  CSS transform, the video's own rect would already include that scale,
+ *  double-counting the zoom in this math; reading the untransformed
+ *  container instead keeps this function the single source of truth for
+ *  "how much zoom is applied," via the explicit `zoom` argument.
+ *
+ *  `zoom` should be the *digital* zoom factor only (1 when zoom is handled
+ *  by the camera hardware itself, since the source frames already reflect
+ *  it and no further crop is needed here). */
+export function computeSourceCropRect(
+  video: HTMLVideoElement,
+  aspect: AspectKey,
+  displayRect: { width: number; height: number },
+  zoom = 1
+): SourceCropRect | null {
   const vw = video.videoWidth, vh = video.videoHeight;
-  const r = video.getBoundingClientRect();
-  if (!vw || !vh || !r.width || !r.height) return null;
+  if (!vw || !vh || !displayRect.width || !displayRect.height) return null;
 
-  const scale = Math.max(r.width / vw, r.height / vh);
-  let sw = r.width / scale, sh = r.height / scale;
+  const scale = Math.max(displayRect.width / vw, displayRect.height / vh);
+  let sw = displayRect.width / scale, sh = displayRect.height / scale;
   let sx = (vw - sw) / 2, sy = (vh - sh) / 2;
 
   const ratio = ASPECT_RATIOS[aspect];
   if (ratio != null) {
-    const containerRatio = r.width / r.height;
+    const containerRatio = displayRect.width / displayRect.height;
     const target = containerRatio >= 1 ? ratio : 1 / ratio;
     const currentRatio = sw / sh;
     if (target < currentRatio) {
@@ -67,6 +85,15 @@ export function computeSourceCropRect(video: HTMLVideoElement, aspect: AspectKey
       sh = newSh;
     }
   }
+
+  if (zoom > 1) {
+    const newSw = sw / zoom, newSh = sh / zoom;
+    sx += (sw - newSw) / 2;
+    sy += (sh - newSh) / 2;
+    sw = newSw;
+    sh = newSh;
+  }
+
   return { sx, sy, sw, sh };
 }
 

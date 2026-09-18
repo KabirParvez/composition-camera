@@ -1,10 +1,14 @@
 import type { AppState, AspectKey, GuideName } from './types';
 import { drawGuide } from './guides';
 import { computeFrameRect, computeSourceCropRect, mapSourcePointToFrame, mapSourcePointToFrameUnclamped } from './layout';
-import { startCamera, isCameraSupported, hasMultipleCameras, describeGetUserMediaError } from './camera';
+import {
+  startCamera, isCameraSupported, hasMultipleCameras, describeGetUserMediaError,
+  getZoomInfo, setNativeZoom, getFocusInfo, setFocusMode, setFocusDistance
+} from './camera';
 import { capturePhoto, flashScreen } from './capture';
 import { requestOrientationPermission, subscribeToRoll, unsubscribeFromRoll } from './orientation';
 import { computeHint } from './scoring';
+import { FILTER_PRESETS, DEFAULT_ADJUSTMENTS, buildFilterString, type FilterPreset } from './adjustments';
 
 const $ = <T extends Element>(sel: string): T => document.querySelector(sel) as T;
 
@@ -36,6 +40,22 @@ export function initApp(): void {
   const subjectBox = $<HTMLElement>('#subjectBox');
   const targetDot = $<HTMLElement>('#targetDot');
   const hintBubble = $<HTMLElement>('#hintBubble');
+  const zoomInput = $<HTMLInputElement>('#zoom');
+  const zoomValue = $<HTMLElement>('#zoomValue');
+  const adjustToggle = $<HTMLButtonElement>('#adjustToggle');
+  const adjustPanel = $<HTMLElement>('#adjustPanel');
+  const filterCtl = $<HTMLElement>('#filterCtl');
+  const brightnessInput = $<HTMLInputElement>('#brightness');
+  const brightnessValue = $<HTMLElement>('#brightnessValue');
+  const contrastInput = $<HTMLInputElement>('#contrast');
+  const contrastValue = $<HTMLElement>('#contrastValue');
+  const saturationInput = $<HTMLInputElement>('#saturation');
+  const saturationValue = $<HTMLElement>('#saturationValue');
+  const focusCtl = $<HTMLElement>('#focusCtl');
+  const focusModesEl = $<HTMLElement>('#focusModes');
+  const focusDistanceCtl = $<HTMLElement>('#focusDistanceCtl');
+  const focusDistanceInput = $<HTMLInputElement>('#focusDistance');
+  const focusNote = $<HTMLElement>('#focusNote');
 
   const state: AppState = {
     guide: 'thirds',
@@ -45,7 +65,11 @@ export function initApp(): void {
     gridOpacity: 90,
     gridColor: '#e3b23c',
     levelOn: false,
-    smartOn: false
+    smartOn: false,
+    zoom: 1,
+    zoomIsNative: false,
+    adjustments: { ...DEFAULT_ADJUSTMENTS },
+    focusMode: null
   };
 
   // ---- layout: size the grid/mask to the current aspect-ratio frame ----
@@ -101,6 +125,117 @@ export function initApp(): void {
     });
   });
 
+  // ---- zoom: hardware zoom when the track exposes it, otherwise a digital
+  // fallback (CSS transform for preview + a matching crop in layout.ts) ----
+  function refreshZoomInfo(): void {
+    const info = getZoomInfo();
+    state.zoomIsNative = info.native;
+    state.zoom = info.native ? info.current : 1;
+    zoomInput.min = String(info.min);
+    zoomInput.max = String(info.max);
+    zoomInput.step = String(info.step);
+    zoomInput.value = String(state.zoom);
+    zoomValue.textContent = `${state.zoom.toFixed(1)}x`;
+    // Native zoom is applied by the hardware; digital zoom resets to 1x
+    // (no scale) whenever the camera (re)starts, so clear any leftover
+    // transform from a previous digital session either way.
+    video.style.transform = '';
+  }
+  zoomInput.addEventListener('input', async () => {
+    const value = Number(zoomInput.value);
+    state.zoom = value;
+    zoomValue.textContent = `${value.toFixed(1)}x`;
+    if (state.zoomIsNative) {
+      try { await setNativeZoom(value); } catch { /* hardware rejected it; slider still reflects intent */ }
+    } else {
+      video.style.transform = `scale(${value})`;
+    }
+  });
+
+  // ---- filters + brightness/contrast/saturation: one CSS filter string,
+  // applied to the live preview and (via capture.ts) the exported photo ----
+  function applyAdjustments(): void {
+    video.style.filter = buildFilterString(state.adjustments);
+  }
+  FILTER_PRESETS.forEach(preset => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = preset.label;
+    btn.dataset.filter = preset.id;
+    btn.setAttribute('aria-pressed', String(preset.id === state.adjustments.filter));
+    btn.addEventListener('click', () => {
+      state.adjustments.filter = preset.id as FilterPreset;
+      filterCtl.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b === btn)));
+      applyAdjustments();
+    });
+    filterCtl.appendChild(btn);
+  });
+  brightnessInput.addEventListener('input', () => {
+    state.adjustments.brightness = Number(brightnessInput.value);
+    brightnessValue.textContent = `${state.adjustments.brightness}%`;
+    applyAdjustments();
+  });
+  contrastInput.addEventListener('input', () => {
+    state.adjustments.contrast = Number(contrastInput.value);
+    contrastValue.textContent = `${state.adjustments.contrast}%`;
+    applyAdjustments();
+  });
+  saturationInput.addEventListener('input', () => {
+    state.adjustments.saturation = Number(saturationInput.value);
+    saturationValue.textContent = `${state.adjustments.saturation}%`;
+    applyAdjustments();
+  });
+
+  // ---- focus: real hardware control, feature-detected. Most webcams and
+  // browsers don't expose this at all — when they don't, focusCtl stays
+  // hidden and focusNote says so rather than showing a control that does
+  // nothing. ----
+  function refreshFocusInfo(): void {
+    const info = getFocusInfo();
+    focusModesEl.replaceChildren();
+    if (!info.supported) {
+      focusCtl.classList.add('hidden');
+      focusNote.classList.remove('hidden');
+      state.focusMode = null;
+      return;
+    }
+    focusNote.classList.add('hidden');
+    focusCtl.classList.remove('hidden');
+    const currentMode = info.modes.includes('continuous') ? 'continuous' : info.modes[0];
+    state.focusMode = currentMode;
+
+    info.modes.forEach(mode => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = mode.charAt(0).toUpperCase() + mode.slice(1);
+      btn.dataset.mode = mode;
+      btn.setAttribute('aria-pressed', String(mode === currentMode));
+      btn.addEventListener('click', async () => {
+        state.focusMode = mode;
+        focusModesEl.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b === btn)));
+        focusDistanceCtl.classList.toggle('hidden', !(mode === 'manual' && info.manual));
+        try { await setFocusMode(mode); } catch { /* not every mode is settable on every device */ }
+      });
+      focusModesEl.appendChild(btn);
+    });
+
+    if (info.manual && info.min != null && info.max != null) {
+      focusDistanceInput.min = String(info.min);
+      focusDistanceInput.max = String(info.max);
+      focusDistanceInput.step = String(info.step || (info.max - info.min) / 100);
+    }
+    focusDistanceCtl.classList.toggle('hidden', !(currentMode === 'manual' && info.manual));
+  }
+  focusDistanceInput.addEventListener('input', () => {
+    void setFocusDistance(Number(focusDistanceInput.value)).catch(() => {});
+  });
+
+  adjustToggle.addEventListener('click', () => {
+    const show = adjustPanel.classList.contains('hidden');
+    adjustPanel.classList.toggle('hidden', !show);
+    adjustToggle.setAttribute('aria-pressed', String(show));
+  });
+
   // ---- horizon / level ----
   function setHorizonRoll(rollDeg: number): void {
     horizonLine.setAttribute('transform', `rotate(${(-rollDeg).toFixed(2)} 50 50)`);
@@ -148,6 +283,8 @@ export function initApp(): void {
     state.facing = state.facing === 'environment' ? 'user' : 'environment';
     try {
       await startCamera(video, state.facing);
+      refreshZoomInfo();
+      refreshFocusInfo();
     } catch (e) {
       err.textContent = describeGetUserMediaError(e);
       state.facing = state.facing === 'environment' ? 'user' : 'environment'; // revert
@@ -170,7 +307,7 @@ export function initApp(): void {
     if (!detectionMod || !video.videoWidth) return;
     const ts = performance.now();
     const det = detectionMod.detectMainSubject(video, ts);
-    const crop = computeSourceCropRect(video, state.aspect);
+    const crop = computeSourceCropRect(video, state.aspect, stage.getBoundingClientRect(), state.zoomIsNative ? 1 : state.zoom);
 
     if (!det || !crop) {
       subjectBox.style.display = 'none';
@@ -276,6 +413,9 @@ export function initApp(): void {
       gate.classList.add('hidden');
       bar.classList.remove('hidden');
       applyFrameLayout();
+      refreshZoomInfo();
+      refreshFocusInfo();
+      applyAdjustments();
       void refreshFlipCamVisibility();
     } catch (e) {
       err.textContent = describeGetUserMediaError(e);
@@ -286,7 +426,13 @@ export function initApp(): void {
   // ---- shutter ----
   shutter.addEventListener('click', async () => {
     try {
-      const blob = await capturePhoto(video, { aspect: state.aspect, burnGuideSvg: state.guide !== 'off' ? grid : null });
+      const blob = await capturePhoto(video, {
+        aspect: state.aspect,
+        displayRect: stage.getBoundingClientRect(),
+        digitalZoom: state.zoomIsNative ? 1 : state.zoom,
+        filter: buildFilterString(state.adjustments),
+        burnGuideSvg: state.guide !== 'off' ? grid : null
+      });
       flashScreen(flash);
       const url = URL.createObjectURL(blob);
       if (thumb.dataset.url) URL.revokeObjectURL(thumb.dataset.url);
@@ -332,6 +478,16 @@ export function initApp(): void {
       case 'c': if (!flipCamBtn.classList.contains('hidden')) flipCamBtn.click(); break;
       case 'l': levelToggle.click(); break;
       case 's': smartToggle.click(); break;
+      case 'a': adjustToggle.click(); break;
+      case '+':
+      case '=':
+        zoomInput.value = String(Math.min(Number(zoomInput.max), Number(zoomInput.value) + Number(zoomInput.step)));
+        zoomInput.dispatchEvent(new Event('input'));
+        break;
+      case '-':
+        zoomInput.value = String(Math.max(Number(zoomInput.min), Number(zoomInput.value) - Number(zoomInput.step)));
+        zoomInput.dispatchEvent(new Event('input'));
+        break;
     }
   });
 
