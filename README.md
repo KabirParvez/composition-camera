@@ -43,11 +43,63 @@ iOS only grants after a user gesture — that's why it's requested inside the
   `<video>` for the live preview and to the capture canvas via `ctx.filter`
   before drawing — one source of truth, so the exported photo always
   matches what you saw, not a re-interpretation of it.
-- **Focus** (`A` to open the panel) — real hardware control via the track's
+- **Focus** (open Settings, `G`) — real hardware control via the track's
   `focusMode`/`focusDistance` constraints, feature-detected. Most laptop
   and phone cameras don't expose this to the browser at all; when a device
   doesn't, the focus section stays hidden and a note says so, rather than
   showing a slider that silently does nothing.
+
+## UI architecture: why the shutter never moves
+
+Everything on screen falls into one of three independent layers, each with
+its own fixed positioning — nothing lives in a single flex column that
+grows and pushes its neighbors around:
+
+- **`#topBar`** — flip camera, level, smart, and the settings toggle.
+  Always exactly four icons; never changes size.
+- **`#bar`** — the guide picker, zoom slider, Photo/Video mode switch, and
+  the shutter row. Every piece here is always present and always the same
+  height; nothing in it conditionally appears or disappears in a way that
+  changes the bar's total height. This is the fixed zone the earlier
+  version didn't have — before, the whole bottom bar was one `flex-direction:
+  column` anchored to `bottom: 0` with no `top`, so *any* sibling growing
+  (like an expandable panel appended after the shutter row) grew the bar's
+  total height, which pushed its `top` edge — and therefore every child's
+  on-screen position, including the shutter — upward.
+- **`#settingsSheet`** — aspect ratio, grid, filters, adjustments, and
+  focus, in one scrollable overlay that slides up *above* the fixed zone
+  (`bottom: calc(var(--bar-height) + 10px)`, with `--bar-height` measured
+  from the actual `#bar` element in `ui.ts` and kept current on resize).
+  Opening or closing it only toggles two `hidden` classes — it never touches
+  `#bar`'s layout, so the shutter's position is unaffected no matter how
+  tall the sheet's content gets.
+
+## Video recording
+
+Press `V` or tap **Video** in the mode switch, then the shutter starts and
+stops a recording (a pulsing timer appears at the top while it runs).
+
+- **`src/video.ts`** — records from a canvas, not the raw camera stream, so
+  the exported clip goes through the exact same crop math as a photo
+  (`computeSourceCropRect` in `layout.ts`): the aspect ratio and zoom you
+  had selected are baked into every frame via `ctx.drawImage`, and the
+  current filter/brightness/contrast/saturation via `ctx.filter`, then
+  `canvas.captureStream()` feeds a `MediaRecorder`. Picks the best
+  supported codec (VP9 → VP8 → WebM → MP4) via `MediaRecorder.isTypeSupported`.
+- Aspect ratio and zoom are locked for the duration of a clip (resizing the
+  recording canvas mid-stream isn't something `MediaRecorder` handles
+  gracefully); filters *do* still update live, since changing `ctx.filter`
+  between frames is cheap and doesn't touch the canvas's dimensions. The
+  settings sheet shows a small note while recording so this isn't a
+  surprise, rather than silently ignoring input.
+- **No audio.** The recording is video-only — adding a microphone track
+  would mean a second `getUserMedia({ audio: true })` call, a second
+  permission prompt, and mixing that track into the canvas's stream before
+  handing it to `MediaRecorder`. Straightforward to add as a follow-up;
+  left out here to keep the permission flow simple for a first pass.
+- Camera flip and mode switching are disabled while a clip is recording
+  (swapping the video track mid-encode would glitch the current clip);
+  everything re-enables the moment you stop.
 
 ## What's here (Phase 1)
 
