@@ -3,14 +3,19 @@
   --ink: #f2efe8;
   --dim: #9a9890;
   --gold: #e3b23c;
+  --gold-dim: rgba(227, 178, 60, 0.35);
   --line: rgba(227, 178, 60, 0.9);
   --grid-opacity: 0.9;
   --panel: rgba(16, 17, 18, 0.72);
+  --panel-deep: rgba(10, 11, 12, 0.82);
+  --font-ui: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Fraunces", Georgia, serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
 }
 
 * { box-sizing: border-box; margin: 0; }
 
-html, body { height: 100%; background: var(--bg); color: var(--ink); font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; overflow: hidden; }
+html, body { height: 100%; background: var(--bg); color: var(--ink); font-family: var(--font-ui); overflow: hidden; }
 
 #stage { position: fixed; inset: 0; height: 100dvh; background: #000; }
 
@@ -55,7 +60,7 @@ svg#horizon.level #horizonLine { stroke: #6fdc7c; }
   position: absolute; top: 18px; left: 50%; transform: translateX(-50%);
   background: var(--panel); backdrop-filter: blur(8px); color: var(--ink);
   font-size: 13px; padding: 8px 14px; border-radius: 999px; white-space: nowrap;
-  border: 1px solid rgba(227, 178, 60, 0.35);
+  border: 1px solid var(--gold-dim);
 }
 #hintBubble.snapped { border-color: rgba(111, 220, 124, 0.7); color: #d8ffdc; }
 
@@ -67,30 +72,51 @@ svg#horizon.level #horizonLine { stroke: #6fdc7c; }
   position: absolute; left: 0; right: 0; bottom: 0;
   padding: 12px 16px calc(16px + env(safe-area-inset-bottom));
   background: linear-gradient(to top, var(--panel), transparent);
-  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+}
+#bar::before {
+  content: ""; position: absolute; left: 16px; right: 16px; top: 0; height: 1px;
+  background: linear-gradient(to right, transparent, var(--gold-dim), transparent);
 }
 
-#picker, #aspectCtl {
+/* ---- Guide picker: literal icons of each guide's own line pattern, the
+   way real camera dials show a mode's glyph rather than spelling it out. ---- */
+#picker {
+  display: flex; gap: 2px; padding: 4px; background: var(--panel); border-radius: 16px;
+  backdrop-filter: blur(8px); max-width: 100%; overflow-x: auto;
+}
+#picker button {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  border: 0; background: none; color: var(--dim); font: inherit; cursor: pointer;
+  padding: 7px 11px 6px; border-radius: 12px; white-space: nowrap;
+}
+#picker button svg { width: 20px; height: 20px; }
+#picker button span { font-size: 10px; letter-spacing: 0.01em; }
+#picker button[aria-pressed="true"] { color: #1a1405; background: var(--gold); }
+#picker button[aria-pressed="true"] span { font-weight: 600; }
+
+#aspectCtl {
   display: flex; gap: 4px; padding: 4px; background: var(--panel); border-radius: 999px; backdrop-filter: blur(8px);
-  max-width: 100%; overflow-x: auto;
+  max-width: 100%; overflow-x: auto; font-family: var(--font-mono);
 }
-#picker button, #aspectCtl button {
-  border: 0; background: none; color: var(--dim); font: inherit; font-size: 13px;
-  padding: 8px 12px; border-radius: 999px; cursor: pointer; white-space: nowrap;
+#aspectCtl button {
+  border: 0; background: none; color: var(--dim); font: inherit; font-size: 12px;
+  padding: 8px 13px; border-radius: 999px; cursor: pointer; white-space: nowrap;
 }
-#picker button[aria-pressed="true"], #aspectCtl button[aria-pressed="true"] { background: var(--gold); color: #1a1405; font-weight: 600; }
+#aspectCtl button[aria-pressed="true"] { background: var(--gold); color: #1a1405; font-weight: 600; }
 
 #row { width: 100%; max-width: 420px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; }
-#shutter { width: 72px; height: 72px; border-radius: 50%; border: 4px solid var(--ink); background: none; padding: 5px; cursor: pointer; justify-self: center; }
-#shutter::after { content: ""; display: block; width: 100%; height: 100%; border-radius: 50%; background: var(--ink); }
+#shutter { width: 72px; height: 72px; border-radius: 50%; border: 4px solid var(--ink); background: none; padding: 5px; cursor: pointer; justify-self: center; transition: border-color 0.15s; }
+#shutter::after { content: ""; display: block; width: 100%; height: 100%; border-radius: 50%; background: var(--ink); transition: background 0.1s; }
 #shutter:active::after { background: var(--gold); }
+#shutter:hover { border-color: var(--gold); }
 
 #thumb { justify-self: start; width: 52px; height: 52px; border-radius: 10px; border: 2px solid var(--dim); background: #222 center/cover; display: none; }
 #thumb.has { display: block; }
 
 #spiralCtl { justify-self: end; display: flex; gap: 6px; }
 #spiralCtl button {
-  border: 1px solid var(--dim); background: var(--panel); color: var(--ink); font: inherit;
+  border: 1px solid var(--dim); background: var(--panel-deep); color: var(--ink); font: inherit;
   font-size: 12px; padding: 7px 11px; border-radius: 999px; cursor: pointer;
 }
 
@@ -106,8 +132,9 @@ svg#horizon.level #horizonLine { stroke: #6fdc7c; }
 }
 #miscCtl button[aria-pressed="true"] { background: var(--gold); color: #1a1405; border-color: var(--gold); font-weight: 600; }
 
-#opacityCtl { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--dim); }
-#opacityCtl input[type="range"] { width: 70px; accent-color: var(--gold); }
+#opacityCtl { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--dim); }
+#opacityCtl input[type="range"] { width: 64px; accent-color: var(--gold); }
+#opacityValue { font-family: var(--font-mono); font-size: 11px; color: var(--gold); min-width: 3ch; }
 
 #colorCtl { display: flex; gap: 6px; }
 #colorCtl button {
@@ -118,16 +145,21 @@ svg#horizon.level #horizonLine { stroke: #6fdc7c; }
 
 button:focus-visible, a:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
 
+/* ---- Gate / onboarding screen ---- */
 #gate {
   position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 14px; padding: 32px; text-align: center; background: var(--bg);
 }
-#gate h1 { font-size: 26px; font-weight: 600; letter-spacing: -0.01em; }
-#gate p { max-width: 34ch; color: var(--dim); line-height: 1.5; }
-#gate button { margin-top: 6px; border: 0; background: var(--gold); color: #1a1405; font: inherit; font-weight: 600; padding: 12px 22px; border-radius: 999px; cursor: pointer; }
+#aperture { width: 72px; height: 72px; color: var(--gold); opacity: 0.9; margin-bottom: 4px; }
+#aperture circle { fill: none; stroke: currentColor; stroke-width: 1.5; opacity: 0.55; }
+#aperture path { fill: currentColor; opacity: 0.85; }
+#gate h1 { font-family: var(--font-display); font-size: 30px; font-weight: 600; letter-spacing: -0.01em; }
+#gate p { max-width: 34ch; color: var(--dim); line-height: 1.55; }
+#gate button { margin-top: 6px; border: 0; background: var(--gold); color: #1a1405; font: inherit; font-weight: 600; padding: 12px 22px; border-radius: 999px; cursor: pointer; transition: transform 0.1s; }
+#gate button:hover { transform: translateY(-1px); }
 #err { color: #ff9d8a; min-height: 1.5em; }
 
-#hint { display: none; text-align: center; font-size: 12px; color: var(--dim); }
+#hint { display: none; text-align: center; font-size: 11px; font-family: var(--font-mono); color: var(--dim); letter-spacing: 0.01em; }
 
 .hidden { display: none !important; }
 
@@ -142,10 +174,9 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--gold); outline-
   #stage {
     position: relative; inset: auto; height: min(720px, 78vh); width: min(960px, 90vw);
     border-radius: 20px; overflow: hidden;
-    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(227, 178, 60, 0.18);
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55), 0 0 0 1px var(--gold-dim);
   }
   #gate { border-radius: 20px; }
   #hint { display: block; margin-top: 14px; }
   #bar { padding-bottom: 16px; }
 }
-

@@ -30,6 +30,7 @@ export function initApp(): void {
   const flipCamBtn = $<HTMLButtonElement>('#flipCam');
   const levelToggle = $<HTMLButtonElement>('#levelToggle');
   const opacityInput = $<HTMLInputElement>('#opacity');
+  const opacityValue = $<HTMLElement>('#opacityValue');
   const smartToggle = $<HTMLButtonElement>('#smartToggle');
   const smartEl = $<HTMLElement>('#smart');
   const subjectBox = $<HTMLElement>('#subjectBox');
@@ -90,6 +91,7 @@ export function initApp(): void {
   opacityInput.addEventListener('input', () => {
     state.gridOpacity = Number(opacityInput.value);
     document.documentElement.style.setProperty('--grid-opacity', String(state.gridOpacity / 100));
+    opacityValue.textContent = `${state.gridOpacity}%`;
   });
   document.querySelectorAll<HTMLButtonElement>('#colorCtl button').forEach(btn => {
     btn.addEventListener('click', () => {
