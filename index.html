@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#101112">
+<title>Composition Camera</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icons/icon-192.png">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
+</head>
+<body>
+<main id="stage">
+  <video id="cam" autoplay playsinline muted></video>
+  <svg id="grid" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg>
+  <div id="smart" class="hidden" aria-hidden="true">
+    <div id="subjectBox"></div>
+    <div id="targetDot"></div>
+  </div>
+  <p id="hintBubble" class="hidden" role="status"></p>
+  <div id="mask" aria-hidden="true"></div>
+  <svg id="horizon" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+    <line id="horizonLine" x1="-20" y1="50" x2="120" y2="50"></line>
+    <line id="horizonCenter" x1="0" y1="50" x2="100" y2="50"></line>
+  </svg>
+  <div id="flash"></div>
+
+  <div id="bar" class="hidden">
+    <div id="picker" role="group" aria-label="Composition guide">
+      <button data-guide="off" aria-pressed="false" title="1">Off</button>
+      <button data-guide="thirds" aria-pressed="true" title="2">Thirds</button>
+      <button data-guide="phi" aria-pressed="false" title="3">Golden grid</button>
+      <button data-guide="spiral" aria-pressed="false" title="4">Spiral</button>
+      <button data-guide="diagonals" aria-pressed="false" title="5">Diagonals</button>
+      <button data-guide="center" aria-pressed="false" title="6">Center</button>
+    </div>
+
+    <div id="row">
+      <a id="thumb" aria-label="Open last photo" target="_blank" rel="noopener"></a>
+      <button id="shutter" aria-label="Take photo" title="Space"></button>
+      <div id="spiralCtl" class="hidden">
+        <button id="rotate" aria-label="Rotate spiral" title="R">Rotate</button>
+        <button id="flip" aria-label="Flip spiral" title="F">Flip</button>
+      </div>
+    </div>
+
+    <div id="tray">
+      <div id="aspectCtl" class="trayGroup" role="group" aria-label="Aspect ratio">
+        <button data-aspect="full" aria-pressed="true">Full</button>
+        <button data-aspect="4:3" aria-pressed="false">4:3</button>
+        <button data-aspect="1:1" aria-pressed="false">1:1</button>
+        <button data-aspect="16:9" aria-pressed="false">16:9</button>
+      </div>
+      <div id="miscCtl" class="trayGroup">
+        <button id="flipCam" aria-label="Switch camera" title="C">Flip camera</button>
+        <button id="levelToggle" aria-pressed="false" title="L">Level</button>
+        <button id="smartToggle" aria-pressed="false" title="Detect the main subject and hint how to frame it">Smart</button>
+        <label id="opacityCtl">
+          <span>Grid</span>
+          <input type="range" id="opacity" min="20" max="100" value="90">
+        </label>
+        <div id="colorCtl" role="group" aria-label="Grid color">
+          <button data-color="#e3b23c" style="--sw:#e3b23c" aria-pressed="true" aria-label="Gold"></button>
+          <button data-color="#f2efe8" style="--sw:#f2efe8" aria-pressed="false" aria-label="White"></button>
+          <button data-color="#4fd1ff" style="--sw:#4fd1ff" aria-pressed="false" aria-label="Cyan"></button>
+          <button data-color="#ff5c5c" style="--sw:#ff5c5c" aria-pressed="false" aria-label="Red"></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="gate">
+    <h1>Composition Camera</h1>
+    <p>Frame your shots with rule of thirds, golden ratio, and spiral guides. The camera stays on your device.</p>
+    <button id="start">Allow camera</button>
+    <p id="err" role="alert"></p>
+  </div>
+</main>
+<p id="hint" aria-hidden="true">Space to capture · 1–6 to switch guides · R/F rotate/flip spiral · C camera · L level · S smart</p>
+
+<script type="module" src="/src/main.ts"></script>
+</body>
+</html>
